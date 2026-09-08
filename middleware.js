@@ -1,4 +1,4 @@
-const PASS_SHA256 = "668f1f50407e3bafbf79401e10bc2a84995c11ced241173051bc8395224bff6b";
+const PASS_SHA256 = "40cd20c5c5d343dad318e39218029fbd1f423c8a260f9bd3e11124082c82613e";
 const COOKIE = "hwa_gate";
 
 export const config = { runtime: "edge" };
@@ -55,6 +55,7 @@ function loginPage(bad) {
     h1{margin:0 0 6px;font-size:28px;letter-spacing:.04em;text-transform:uppercase}
     p{margin:0 0 16px;color:#b8c5d6;font-size:14px}
     .err{color:#ffb4b4;margin-bottom:12px;font-size:13px}
+    .hint{margin:8px 0 0;color:#8ea0b5;font-size:13px;font-style:italic}
     label{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:6px}
     input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #1e4b8c;background:#07111f;color:#fff;font-size:16px;border-radius:2px}
     button{width:100%;margin-top:14px;border:0;background:#c8102e;color:#fff;padding:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
@@ -69,6 +70,7 @@ function loginPage(bad) {
     ${bad ? '<p class="err">Wrong password.</p>' : ""}
     <label for="password">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required autofocus />
+    <p class="hint">Hint: ants favorite snake plural capital T</p>
     <button type="submit">Unlock</button>
     <div class="bar"></div>
   </form>
