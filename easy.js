@@ -37,7 +37,16 @@
 
   function simplify() {
     const app = document.getElementById("app");
-    if (!app || app.querySelector(".start-card")) return;
+    if (!app) return;
+
+    const today = [...app.querySelectorAll("h2")].find((h) => h.textContent === "Today");
+    if (today) {
+      const boardBtn = document.querySelector('#nav [data-view="board"]');
+      if (boardBtn) boardBtn.click();
+      return;
+    }
+
+    if (app.querySelector(".start-card")) return;
 
     const records = [...app.querySelectorAll("h2")].find((h) => h.textContent === "Records");
     if (records && /No records/.test(records.parentElement.textContent || "")) {
