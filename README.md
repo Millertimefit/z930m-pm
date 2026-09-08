@@ -12,6 +12,8 @@ Every visit starts with event type: Inspection, Repair, Unscheduled, Interval.
 
 **https://z930m-service.vercel.app**
 
+The live site is password-gated. Ask the owner for the password. After unlock, this browser stays signed in for a year. Open `/logout` to lock it again.
+
 Each phone keeps its own log. Add to Home Screen on mobile.
 
 Z930M Deere intervals still apply when you add that unit with schedule “John Deere Z930M chart.”

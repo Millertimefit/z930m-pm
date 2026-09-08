@@ -1,8 +1,8 @@
-const CACHE = "hwa-estate-v2";
+const CACHE = "hwa-estate-v3";
 const FILES = ["./index.html", "./style.css", "./app.js", "./schedule.js", "./catalog.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES).catch(() => {})));
   self.skipWaiting();
 });
 
@@ -14,5 +14,16 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+  if (e.request.method !== "GET") return;
+  e.respondWith(
+    fetch(e.request)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request))
+  );
 });
