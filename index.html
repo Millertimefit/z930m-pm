@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#1f4d18" />
+  <meta name="theme-color" content="#07111f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Z930M Service</title>
+  <title>3HWA · Bonita Springs Estate</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -13,21 +13,22 @@
 </head>
 <body>
   <header class="app">
-    <p class="kicker">Shop log · not a John Deere product</p>
-    <h1 id="hdr-name">Z930M Service</h1>
-    <p class="hours" id="hdr-hours">Set up the machine to start</p>
+    <p class="kicker" id="hdr-kicker">3HWA · MAVERICK</p>
+    <h1 id="hdr-name">Bonita Springs Estate</h1>
+    <p class="hours" id="hdr-hours">Pick a site and an asset</p>
   </header>
 
   <main id="app"></main>
 
   <nav class="nav" id="nav">
-    <button type="button" data-view="home">Home</button>
+    <button type="button" data-view="home">Estate</button>
     <button type="button" data-view="event">Log</button>
     <button type="button" data-view="tasks">Tasks</button>
-    <button type="button" data-view="add">Add</button>
+    <button type="button" data-view="add">Asset</button>
     <button type="button" data-view="more">More</button>
   </nav>
 
+  <script src="catalog.js"></script>
   <script src="schedule.js"></script>
   <script src="app.js"></script>
 </body>

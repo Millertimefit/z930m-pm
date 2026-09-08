@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#1f4d18"/>
-  <rect x="0" y="52" width="64" height="12" fill="#ffde00"/>
-  <text x="32" y="38" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#ffde00">Z930</text>
+  <rect width="64" height="64" fill="#07111f"/>
+  <rect y="0" height="8" width="64" fill="#c8102e"/>
+  <rect y="56" height="8" width="64" fill="#c8102e"/>
+  <polygon points="32,16 36,28 48,28 38,36 42,48 32,40 22,48 26,36 16,28 28,28" fill="#f6f7f9"/>
 </svg>

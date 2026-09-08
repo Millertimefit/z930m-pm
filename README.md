@@ -1,2 +1,17 @@
-# z930m-pm
-John Deere Z930M service log — hour meter form and Deere maintenance schedule
+# 3HWA · Bonita Springs Estate
+
+Red / white / blue Maverick log for client **3HWA** at **Bonita Springs Estate**.
+
+Sites: Main House, Office, Barn, Man Town, Pump Room, Shipp. Cont., AG Land.
+
+Classes: Equipment, Autos, Planes, Heavy Equip, Fence Gates.
+
+Every visit starts with event type: Inspection, Repair, Unscheduled, Interval.
+
+## Share
+
+**https://z930m-service.vercel.app**
+
+Each phone keeps its own log. Add to Home Screen on mobile.
+
+Z930M Deere intervals still apply when you add that unit with schedule “John Deere Z930M chart.”
