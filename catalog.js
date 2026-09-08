@@ -19,6 +19,19 @@ window.ESTATE = {
     { id: "heavy", label: "Heavy Equip", meter: "hours" },
     { id: "fence-gates", label: "Fence Gates", meter: "cycles" },
   ],
+  stock: [
+    { id: "filters", label: "Filters", unit: "each" },
+    { id: "oil", label: "Oil", unit: "qt" },
+    { id: "eth-gas", label: "Ethanol-free gas", unit: "gal" },
+    { id: "diesel-ag", label: "Diesel AG grade", unit: "gal" },
+    { id: "grease", label: "Grease", unit: "tube" },
+    { id: "hyd-oil", label: "Hydraulic oil", unit: "gal" },
+    { id: "coolant", label: "Coolant", unit: "gal" },
+    { id: "air-filters", label: "Air filters", unit: "each" },
+    { id: "fuel-filters", label: "Fuel filters", unit: "each" },
+    { id: "def", label: "DEF", unit: "gal" },
+    { id: "other", label: "Other", unit: "each" },
+  ],
 };
 
 window.GENERIC_SCHEDULES = {
@@ -47,6 +60,9 @@ window.GENERIC_SCHEDULES = {
     { id: "fg-lube", title: "Hinges, rollers, latches", intervalDays: 90 },
     { id: "fg-hardware", title: "Hardware / operator check", yearly: true },
   ],
+  inventory: [
+    { id: "inv-count", title: "Count stock", intervalDays: 30 },
+  ],
 };
 
 window.DAILY_BY_CATEGORY = {
@@ -55,4 +71,5 @@ window.DAILY_BY_CATEGORY = {
   planes: ["Preflight", "Fuel / oil", "Control surfaces"],
   heavy: ["Walkaround", "Fluids / leaks", "Tracks or tires"],
   "fence-gates": ["Visual", "Latches / stops", "Operator / power"],
+  inventory: ["Count on hand", "Container condition", "Reorder if low"],
 };

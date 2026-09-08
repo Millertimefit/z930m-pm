@@ -1,6 +1,6 @@
 # Built For Life
 
-Calm operations board for client **3HWA** at **Bonita Springs Estate**. Debrief home, CRM-style records, and the field log.
+Calm operations board for client **3HWA** at **Bonita Springs Estate**. Debrief home, generic records (equipment or inventory), and the field log.
 
 Sites: Main House, Office, Barn, Man Town, Pump Room, Shipp.Cont., AG Land.
 
