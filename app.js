@@ -16,6 +16,7 @@
   let eventType = "";
   let siteFilter = "all";
   let catFilter = "all";
+  let kindFilter = "all";
   let searchQuery = "";
   function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
   function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -33,6 +34,10 @@
           if (a.notes == null) a.notes = "";
           if (a.nextStep == null) a.nextStep = "";
           if (a.nextStepBy == null) a.nextStepBy = "";
+          if (!a.kind) a.kind = "asset";
+          if (a.qty == null) a.qty = a.kind === "inventory" ? (a.meter || 0) : 0;
+          if (!a.unit) a.unit = a.kind === "inventory" ? (a.meterLabel || "each") : "";
+          if (a.reorder == null) a.reorder = 0;
         });
         if (!raw.history) raw.history = [];
         return raw;
@@ -49,11 +54,16 @@
     setTimeout(() => el.remove(), 1600);
   }
   function esc(s) {
-    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    return String(s == null ? "" : s).replace(/&/g, "&").replace(/</g, "<").replace(/"/g, """);
   }
   function siteLabel(id) { const s = ESTATE.sites.find((x) => x.id === id); return s ? s.label : id; }
-  function catLabel(id) { const s = ESTATE.categories.find((x) => x.id === id); return s ? s.label : id; }
+  function catLabel(id) {
+    const s = ESTATE.categories.find((x) => x.id === id) || (ESTATE.stock || []).find((x) => x.id === id);
+    return s ? s.label : id;
+  }
   function catMeter(id) { const s = ESTATE.categories.find((x) => x.id === id); return s ? s.meter : "hours"; }
+  function isInv(a) { return a && a.kind === "inventory"; }
+  function stockOf(id) { return (ESTATE.stock || []).find((x) => x.id === id) || null; }
   function current() { return state.assets.find((a) => a.id === state.currentId) || null; }
   function log(entry) {
     const a = current();
@@ -63,7 +73,8 @@
     if (asset.scheduleKind === "z930m") {
       return DEERE_SCHEDULE.templates.filter((t) => !t.variants || t.variants.includes(asset.variant || "non-efi"));
     }
-    return (GENERIC_SCHEDULES[asset.category] || []).map((t) => Object.assign({ parts: {}, note: "" }, t));
+    const key = isInv(asset) ? "inventory" : asset.category;
+    return (GENERIC_SCHEDULES[key] || []).map((t) => Object.assign({ parts: {}, note: "" }, t));
   }
   function intervalOf(t, asset) {
     if (t.intervalHoursByVariant) return t.intervalHoursByVariant[asset.variant || "non-efi"];
@@ -117,6 +128,13 @@
     return hoursAgo(state.history[0].at);
   }
   function assetHealth(asset) {
+    if (isInv(asset)) {
+      const q = Number(asset.qty != null ? asset.qty : asset.meter) || 0;
+      const r = Number(asset.reorder) || 0;
+      if (q <= 0) return "override";
+      if (r && q <= r) return "watch";
+      return "steady";
+    }
     const fail = state.history.find((h) => h.assetId === asset.id && h.eventType === "inspection" && /fail/i.test(h.text || ""));
     if (fail && hoursAgo(fail.at) < 24 * 21) return "override";
     if (overdueCount(asset)) return "watch";
@@ -135,10 +153,17 @@
     const today = todayISO();
     const items = [];
     state.assets.forEach((a) => {
-      if (assetHealth(a) === "override") items.push({ asset: a, kind: "override", blurb: a.name + " had a failed inspection. It is waiting on your call, not the clock." });
+      if (assetHealth(a) === "override") {
+        const blurb = isInv(a) ? a.name + " at " + siteLabel(a.site) + " is out. Restock when you can." : a.name + " had a failed inspection. It is waiting on your call, not the clock.";
+        items.push({ asset: a, kind: "override", blurb });
+      }
     });
     state.assets.forEach((a) => {
       if (items.some((x) => x.asset.id === a.id)) return;
+      if (isInv(a) && assetHealth(a) === "watch") {
+        items.push({ asset: a, kind: "watch", blurb: a.name + " at " + siteLabel(a.site) + " is below the mark — restock when convenient." });
+        return;
+      }
       if (dueSoonOpen(a).length) items.push({ asset: a, kind: "watch", blurb: a.name + " at " + siteLabel(a.site) + " has work inside the window — no rush." });
     });
     state.assets.forEach((a) => {
@@ -155,14 +180,12 @@
     const s1 = od === 0 ? "The estate is settled." : od === 1 ? "The estate is quiet, with one item in view." : "The estate is holding, with a few items in view.";
     const s2 = recent.length ? recent.length + (recent.length === 1 ? " note closed while you were away." : " notes closed while you were away.") : "Nothing new closed since your last look.";
     const focus = focusItems();
-    const s3 = focus[0] ? focus[0].blurb : "Nothing needs you. The estate is executing.";
-    return s1 + " " + s2 + " " + s3;
+    return s1 + " " + s2 + " " + (focus[0] ? focus[0].blurb : "Nothing needs you. The estate is executing.");
   }
   function matchesSearch(a) {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
-    const blob = [a.name, a.serial, a.owner, a.notes, a.nextStep, siteLabel(a.site), catLabel(a.category)].join(" ").toLowerCase();
-    return blob.indexOf(q) !== -1;
+    return [a.name, a.serial, a.owner, a.notes, a.nextStep, a.kind, siteLabel(a.site), catLabel(a.category)].join(" ").toLowerCase().indexOf(q) !== -1;
   }
   function updateMeter(asset, next, silent) {
     if (next < asset.meter) return "Meter cannot go backwards.";
@@ -192,12 +215,21 @@
     save();
   }
   function addAsset(fd) {
-    const category = fd.get("category");
+    const kind = fd.get("kind") || "asset";
+    const stockId = fd.get("stock") || "";
+    const stock = stockOf(stockId);
+    const category = kind === "inventory" ? (stockId || "other") : fd.get("category");
+    const qty = Number(fd.get("qty") || 0);
+    const unit = String(fd.get("unit") || (stock && stock.unit) || "each");
+    const name = String(fd.get("name") || "").trim() || (stock ? stock.label : "Item");
     const asset = {
-      id: uid(), name: String(fd.get("name") || "").trim(), site: fd.get("site"), category,
-      meter: Number(fd.get("meter") || 0), meterLabel: catMeter(category),
+      id: uid(), kind, name, site: fd.get("site"), category,
+      meter: kind === "inventory" ? qty : Number(fd.get("meter") || 0),
+      meterLabel: kind === "inventory" ? unit : catMeter(category),
+      qty, unit, reorder: Number(fd.get("reorder") || 0),
       serial: String(fd.get("serial") || "").trim(), inService: fd.get("inService") || todayISO(),
-      scheduleKind: fd.get("scheduleKind") || "generic", variant: fd.get("variant") || "non-efi",
+      scheduleKind: kind === "inventory" ? "generic" : (fd.get("scheduleKind") || "generic"),
+      variant: fd.get("variant") || "non-efi",
       owner: String(fd.get("owner") || "").trim(), notes: String(fd.get("notes") || "").trim(),
       nextStep: String(fd.get("nextStep") || "").trim(), nextStepBy: fd.get("nextStepBy") || "", tasks: []
     };
@@ -209,10 +241,20 @@
   }
   function filteredAssets() {
     return state.assets.filter((a) => {
+      const kind = a.kind || "asset";
+      if (kindFilter === "asset" && kind !== "asset") return false;
+      if (kindFilter === "inventory" && kind !== "inventory") return false;
       if (siteFilter !== "all" && a.site !== siteFilter) return false;
       if (catFilter !== "all" && a.category !== catFilter) return false;
       return true;
     });
+  }
+  function adjustStock(asset, delta, why) {
+    const next = Math.max(0, (Number(asset.qty) || 0) + delta);
+    asset.qty = next;
+    asset.meter = next;
+    log({ type: "event", eventType: "unscheduled", hours: next, text: asset.name + " " + why + " \u00b7 on hand " + next + " " + (asset.unit || "") });
+    save();
   }
   function chips(list, cur, allLabel, key) {
     return `<button type="button" class="chip ${cur === "all" ? "on" : ""}" data-${key}="all">${allLabel}</button>` +
@@ -250,9 +292,10 @@
     (map[view] || home)();
   }
   function home() {
-    const n = state.assets.length;
-    const od = estateOverdue();
-    const inWindow = state.assets.filter((a) => assetHealth(a) === "steady").length;
+    const fleet = state.assets.filter((a) => !isInv(a));
+    const n = fleet.length;
+    const od = fleet.reduce((sum, a) => sum + overdueCount(a), 0);
+    const inWindow = fleet.filter((a) => assetHealth(a) === "steady").length;
     const quiet = quietHours();
     const recent = state.history.filter((h) => hoursAgo(h.at) != null && hoursAgo(h.at) <= 72).slice(0, 8);
     const focus = focusItems();
@@ -276,14 +319,17 @@
   }
   function board() {
     const list = filteredAssets().filter(matchesSearch);
-    $app.innerHTML = `<input class="search" id="q" type="search" placeholder="Search name, site, steward, serial\u2026" value="${esc(searchQuery)}" />
-      <div class="card"><h2>Site</h2><div class="chips">${chips(ESTATE.sites, siteFilter, "All", "site")}</div>
-      <h2 style="margin-top:12px">Class</h2><div class="chips">${chips(ESTATE.categories, catFilter, "All", "cat")}</div></div>
-      <div class="card"><h2>Records</h2>${list.length ? list.map((a) => { const last = lastActivity(a); const h = assetHealth(a); return `<div class="asset ${h} ${a.id === state.currentId ? "on" : ""}" data-id="${a.id}"><h3>${esc(a.name)}</h3><p class="meta">${esc(siteLabel(a.site))} \u00b7 ${esc(catLabel(a.category))} \u00b7 ${a.meter} ${esc(a.meterLabel)} \u00b7 ${healthLabel(h)}${a.nextStep ? " \u00b7 Next: " + esc(a.nextStep) : ""}${last ? " \u00b7 " + esc(last.at.slice(0, 10)) : ""}</p></div>`; }).join("") : `<p class="muted">No records in this view.</p>`}<button class="secondary" type="button" id="go-add">Add record</button></div>`;
+    const classList = kindFilter === "inventory" ? (ESTATE.stock || []) : ESTATE.categories;
+    $app.innerHTML = `<input class="search" id="q" type="search" placeholder="Search name, site, stock, serial\u2026" value="${esc(searchQuery)}" />
+      <div class="card"><h2>Kind</h2><div class="chips">${chips([{ id: "asset", label: "Equipment" }, { id: "inventory", label: "Inventory" }], kindFilter, "All", "kind")}</div>
+      <h2 style="margin-top:12px">Site</h2><div class="chips">${chips(ESTATE.sites, siteFilter, "All", "site")}</div>
+      <h2 style="margin-top:12px">${kindFilter === "inventory" ? "Stock" : "Class"}</h2><div class="chips">${chips(classList, catFilter, "All", "cat")}</div></div>
+      <div class="card"><h2>Records</h2>${list.length ? list.map((a) => { const last = lastActivity(a); const h = assetHealth(a); const qtyLine = isInv(a) ? (a.qty + " " + (a.unit || "")) : (a.meter + " " + a.meterLabel); return `<div class="asset ${h} ${a.id === state.currentId ? "on" : ""}" data-id="${a.id}"><h3>${esc(a.name)}</h3><p class="meta">${isInv(a) ? "Inventory" : "Equipment"} \u00b7 ${esc(siteLabel(a.site))} \u00b7 ${esc(catLabel(a.category))} \u00b7 ${esc(qtyLine)} \u00b7 ${healthLabel(h)}${a.nextStep ? " \u00b7 Next: " + esc(a.nextStep) : ""}${last ? " \u00b7 " + esc(last.at.slice(0, 10)) : ""}</p></div>`; }).join("") : `<p class="muted">No records in this view.</p>`}<button class="secondary" type="button" id="go-add">Add record</button></div>`;
     const q = $app.querySelector("#q");
     q.oninput = () => { searchQuery = q.value; };
     q.onchange = () => { searchQuery = q.value; render(); };
     q.onkeydown = (e) => { if (e.key === "Enter") { searchQuery = q.value; render(); } };
+    $app.querySelectorAll("[data-kind]").forEach((b) => { b.onclick = () => { kindFilter = b.dataset.kind; catFilter = "all"; render(); }; });
     $app.querySelectorAll("[data-site]").forEach((b) => { b.onclick = () => { siteFilter = b.dataset.site; render(); }; });
     $app.querySelectorAll("[data-cat]").forEach((b) => { b.onclick = () => { catFilter = b.dataset.cat; render(); }; });
     $app.querySelectorAll(".asset").forEach((el) => { el.onclick = () => { state.currentId = el.dataset.id; save(); view = "record"; render(); }; });
@@ -296,12 +342,28 @@
     const last = lastActivity(asset);
     const rel = related(asset);
     const timeline = state.history.filter((x) => x.assetId === asset.id).slice(0, 12);
-    $app.innerHTML = `<div class="card"><h2>Record</h2><p class="hero-copy">${esc(asset.name)}</p><p class="muted">${esc(healthLabel(h))} \u00b7 ${esc(siteLabel(asset.site))} \u00b7 ${esc(catLabel(asset.category))}</p>
-      <dl class="attrs"><div><dt>Meter</dt><dd>${asset.meter} ${esc(asset.meterLabel)}</dd></div><div><dt>Serial</dt><dd>${esc(asset.serial || "\u2014")}</dd></div><div><dt>Steward</dt><dd>${esc(asset.owner || "\u2014")}</dd></div><div><dt>Last activity</dt><dd>${last ? esc(last.at.slice(0, 16).replace("T", " ")) : "\u2014"}</dd></div></dl>
-      <form id="f-record"><label>Next step</label><input name="nextStep" value="${esc(asset.nextStep || "")}" placeholder="What happens next" /><label>Due by</label><input name="nextStepBy" type="date" value="${esc(asset.nextStepBy || "")}" /><label>Steward</label><input name="owner" value="${esc(asset.owner || "")}" placeholder="Who owns this unit" /><label>Standing notes</label><textarea name="notes">${esc(asset.notes || "")}</textarea><button class="secondary" type="submit">Save record</button></form>
+    const inv = isInv(asset);
+    const onHand = inv ? (Number(asset.qty) || 0) : asset.meter;
+    const unit = inv ? (asset.unit || "each") : asset.meterLabel;
+    $app.innerHTML = `<div class="card"><h2>Record</h2><p class="hero-copy">${esc(asset.name)}</p><p class="muted">${inv ? "Inventory" : "Equipment"} \u00b7 ${esc(healthLabel(h))} \u00b7 ${esc(siteLabel(asset.site))} \u00b7 ${esc(catLabel(asset.category))}</p>
+      <dl class="attrs"><div><dt>${inv ? "On hand" : "Meter"}</dt><dd>${onHand} ${esc(unit)}</dd></div><div><dt>${inv ? "Reorder at" : "Serial"}</dt><dd>${inv ? (asset.reorder || "\u2014") : esc(asset.serial || "\u2014")}</dd></div><div><dt>Steward</dt><dd>${esc(asset.owner || "\u2014")}</dd></div><div><dt>Last activity</dt><dd>${last ? esc(last.at.slice(0, 16).replace("T", " ")) : "\u2014"}</dd></div></dl>
+      ${inv ? `<form id="f-stock" class="row2"><div><label>Receive</label><input name="in" type="number" min="0" step="0.1" value="0" /></div><div><label>Issue</label><input name="out" type="number" min="0" step="0.1" value="0" /></div><button class="secondary" type="submit">Update stock</button></form>` : ""}
+      <form id="f-record">${inv ? `<label>On hand</label><input name="qty" type="number" min="0" step="0.1" value="${onHand}" /><label>Unit</label><input name="unit" value="${esc(unit)}" /><label>Reorder at</label><input name="reorder" type="number" min="0" step="0.1" value="${asset.reorder || 0}" />` : ""}<label>Next step</label><input name="nextStep" value="${esc(asset.nextStep || "")}" placeholder="What happens next" /><label>Due by</label><input name="nextStepBy" type="date" value="${esc(asset.nextStepBy || "")}" /><label>Steward</label><input name="owner" value="${esc(asset.owner || "")}" placeholder="Who looks after this" /><label>Standing notes</label><textarea name="notes">${esc(asset.notes || "")}</textarea><button class="secondary" type="submit">Save record</button></form>
       <div class="actions"><button class="primary" type="button" id="go-log">Log an event</button><button class="ghost" type="button" id="go-tasks">Open tasks</button></div></div>
       ${rel.length ? `<div class="card"><h2>Related at ${esc(siteLabel(asset.site))}</h2>${rel.map((a) => `<div class="asset ${assetHealth(a)}" data-id="${a.id}"><h3>${esc(a.name)}</h3><p class="meta">${esc(catLabel(a.category))} \u00b7 ${a.meter} ${esc(a.meterLabel)}</p></div>`).join("")}</div>` : ""}
       <div class="card"><h2>History</h2>${timeline.length ? `<ul class="ledger">${timeline.map((x) => `<li><time>${esc(x.at.slice(0, 16).replace("T", " "))}</time>${esc(x.eventType || x.type)} \u00b7 ${esc(x.text)}</li>`).join("")}</ul>` : `<p class="muted">No activity on this record yet.</p>`}</div>`;
+    const stockForm = $app.querySelector("#f-stock");
+    if (stockForm) {
+      stockForm.onsubmit = (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const inn = Number(fd.get("in") || 0);
+        const out = Number(fd.get("out") || 0);
+        if (inn) adjustStock(asset, inn, "received +" + inn);
+        if (out) adjustStock(asset, -out, "issued -" + out);
+        toast("Stock updated"); render();
+      };
+    }
     $app.querySelector("#f-record").onsubmit = (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -309,6 +371,13 @@
       asset.nextStepBy = fd.get("nextStepBy") || "";
       asset.owner = String(fd.get("owner") || "").trim();
       asset.notes = String(fd.get("notes") || "").trim();
+      if (isInv(asset)) {
+        asset.qty = Number(fd.get("qty") || 0);
+        asset.unit = String(fd.get("unit") || "each");
+        asset.reorder = Number(fd.get("reorder") || 0);
+        asset.meter = asset.qty;
+        asset.meterLabel = asset.unit;
+      }
       save(); toast("Record saved"); render();
     };
     $app.querySelector("#go-log").onclick = () => { view = "event"; render(); };
@@ -327,7 +396,7 @@
     const hoursNow = asset.meter;
     const today = todayISO();
     const open = openTasks(asset).sort((a, b) => (a.dueHours || 0) - (b.dueHours || 0));
-    const daily = DAILY_BY_CATEGORY[asset.category] || ["Walkaround", "Fluids", "Leaks"];
+    const daily = DAILY_BY_CATEGORY[isInv(asset) ? "inventory" : asset.category] || ["Walkaround", "Fluids", "Leaks"];
     $app.innerHTML = `<div class="card"><h2>Log an event</h2><p class="muted">${esc(asset.name)} | ${esc(siteLabel(asset.site))} | ${esc(catLabel(asset.category))}</p>
       <form id="f-event"><label>Event type</label><div class="event-types" id="type-list">${EVENT_TYPES.map((t) => `<label class="${eventType === t.id ? "picked" : ""}"><input type="radio" name="eventType" value="${t.id}" ${eventType === t.id ? "checked" : ""} required /><span>${esc(t.label)}<small>${esc(t.hint)}</small></span></label>`).join("")}</div>
       <label>Date</label><input name="date" type="date" required value="${today}" />
@@ -396,24 +465,60 @@
     };
   }
   function add() {
-    $app.innerHTML = `<div class="card"><h2>Add asset</h2><p class="muted">${esc(ESTATE.client)} | ${esc(ESTATE.property)}</p><form id="f-add">
-      <label>Name</label><input name="name" required placeholder="JD Z930M, Gator, gate 3, Baron" />
-      <label>Site</label><select name="site">${ESTATE.sites.map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join("")}</select>
-      <label>Class</label><select name="category">${ESTATE.categories.map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join("")}</select>
-      <label>Schedule</label><select name="scheduleKind"><option value="generic">Generic for that class</option><option value="z930m">John Deere Z930M chart</option></select>
-      <label>Z930M engine (if Deere chart)</label><select name="variant"><option value="non-efi">Z930M non-EFI</option><option value="efi">Z930M EFI</option></select>
-      <div class="row2"><div><label>Meter now</label><input name="meter" type="number" min="0" step="0.1" value="0" /></div><div><label>Serial / N-number / VIN</label><input name="serial" /></div></div>
-      <label>Steward</label><input name="owner" placeholder="Who owns this unit" />
-      <label>Next step</label><input name="nextStep" placeholder="What happens next" />
-      <label>Next step by</label><input name="nextStepBy" type="date" />
-      <label>Standing notes</label><textarea name="notes"></textarea>
-      <label>In service</label><input name="inService" type="date" value="${todayISO()}" /><button class="primary" type="submit">Add to estate</button></form></div>`;
-    $app.querySelector("#f-add").onsubmit = (e) => { e.preventDefault(); addAsset(new FormData(e.target)); toast("Asset on the board"); view = "record"; render(); };
+    $app.innerHTML = `<div class="card"><h2>Add record</h2><p class="muted">${esc(ESTATE.client)} \u00b7 ${esc(ESTATE.property)}</p><form id="f-add">
+      <label>Kind</label>
+      <div class="event-types" id="kind-list">
+        <label class="picked"><input type="radio" name="kind" value="asset" checked /> <span>Equipment<small>Mower, truck, gate, plane, tool</small></span></label>
+        <label><input type="radio" name="kind" value="inventory" /> <span>Inventory<small>Filters, oil, fuel, grease, stock</small></span></label>
+      </div>
+      <div id="add-extra"></div>
+      <label>Steward</label><input name="owner" placeholder="Who looks after this" />
+      <label>Notes</label><textarea name="notes"></textarea>
+      <button class="primary" type="submit">Add to estate</button></form></div>`;
+    const extra = $app.querySelector("#add-extra");
+    function paintKind() {
+      const kind = ($app.querySelector("input[name=kind]:checked") || {}).value || "asset";
+      if (kind === "inventory") {
+        extra.innerHTML = `<label>Stock item</label><select name="stock">${(ESTATE.stock || []).map((s) => `<option value="${s.id}" data-unit="${esc(s.unit)}">${esc(s.label)}</option>`).join("")}</select>
+          <label>Name</label><input name="name" placeholder="Leave blank to use the stock name" />
+          <label>Stored at</label><select name="site">${ESTATE.sites.map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join("")}</select>
+          <div class="row2"><div><label>On hand</label><input name="qty" type="number" min="0" step="0.1" value="0" /></div><div><label>Unit</label><input name="unit" value="each" /></div></div>
+          <label>Reorder at</label><input name="reorder" type="number" min="0" step="0.1" value="0" />`;
+        const stock = extra.querySelector("[name=stock]");
+        const unit = extra.querySelector("[name=unit]");
+        const name = extra.querySelector("[name=name]");
+        function syncStock() {
+          const opt = stock.options[stock.selectedIndex];
+          if (unit) unit.value = opt.getAttribute("data-unit") || "each";
+          if (name && !name.value) name.placeholder = opt.text + " (or type a specific name)";
+        }
+        stock.onchange = syncStock;
+        syncStock();
+      } else {
+        extra.innerHTML = `<label>Name</label><input name="name" required placeholder="Gator, gate 3, pump, mower" />
+          <label>Site</label><select name="site">${ESTATE.sites.map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join("")}</select>
+          <label>Class</label><select name="category">${ESTATE.categories.map((s) => `<option value="${s.id}">${esc(s.label)}</option>`).join("")}</select>
+          <div class="row2"><div><label>Meter now</label><input name="meter" type="number" min="0" step="0.1" value="0" /></div><div><label>Serial / VIN / N-number</label><input name="serial" /></div></div>
+          <label>In service</label><input name="inService" type="date" value="${todayISO()}" />
+          <details><summary class="muted">Optional service chart</summary>
+            <label>Chart</label><select name="scheduleKind"><option value="generic">Generic for that class</option><option value="z930m">John Deere Z930M</option></select>
+            <label>Z930M engine</label><select name="variant"><option value="non-efi">Non-EFI</option><option value="efi">EFI</option></select>
+          </details>`;
+      }
+    }
+    paintKind();
+    $app.querySelectorAll("#kind-list input").forEach((r) => {
+      r.onchange = () => {
+        $app.querySelectorAll("#kind-list label").forEach((l) => l.classList.toggle("picked", l.querySelector("input").checked));
+        paintKind();
+      };
+    });
+    $app.querySelector("#f-add").onsubmit = (e) => { e.preventDefault(); addAsset(new FormData(e.target)); toast("On the board"); view = "record"; render(); };
   }
   function more() {
-    $app.innerHTML = `<div class="card"><h2>${esc(ESTATE.title)}</h2><p class="muted">${esc(ESTATE.client)} | ${esc(ESTATE.property)} | callsign ${esc(ESTATE.callsign)}</p><p class="muted" style="margin-top:8px">Sites: ${ESTATE.sites.map((s) => s.label).join(" | ")}</p><p class="muted">Classes: ${ESTATE.categories.map((s) => s.label).join(" | ")}</p></div>
+    $app.innerHTML = `<div class="card"><h2>${esc(ESTATE.title)}</h2><p class="muted">${esc(ESTATE.client)} | ${esc(ESTATE.property)} | callsign ${esc(ESTATE.callsign)}</p><p class="muted" style="margin-top:8px">Sites: ${ESTATE.sites.map((s) => s.label).join(" | ")}</p><p class="muted">Classes: ${ESTATE.categories.map((s) => s.label).join(" | ")}</p><p class="muted">Stock: ${(ESTATE.stock || []).map((s) => s.label).join(" | ")}</p></div>
       <div class="card"><h2>Data</h2><button class="secondary" type="button" data-go="history">History</button><button class="ghost" type="button" id="export-json">Export JSON</button><button class="ghost" type="button" id="export-csv">Export CSV</button><label class="muted">Import JSON<input type="file" id="import-json" accept="application/json" /></label></div>
-      <div class="card sources"><h2>Deere sources (Z930M)</h2>${DEERE_SCHEDULE.sources.map((s) => `<p><a href="${s.url}" target="_blank" rel="noopener">${esc(s.title)}</a></p>`).join("")}<p class="muted" style="margin-top:8px">Not affiliated with Deere &amp; Company.</p></div>`;
+      <div class="card sources"><h2>Deere sources (Z930M)</h2>${DEERE_SCHEDULE.sources.map((s) => `<p><a href="${s.url}" target="_blank" rel="noopener">${esc(s.title)}</a></p>`).join("")}<p class="muted" style="margin-top:8px">Not affiliated with Deere & Company.</p></div>`;
     $app.querySelector("[data-go]").onclick = () => { view = "history"; render(); };
     $app.querySelector("#export-json").onclick = () => download("3hwa-estate.json", JSON.stringify(state, null, 2), "application/json");
     $app.querySelector("#export-csv").onclick = exportCsv;
