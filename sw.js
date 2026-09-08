@@ -1,4 +1,4 @@
-const CACHE = "hwa-estate-v9";
+const CACHE = "hwa-estate-v10";
 const FILES = ["./index.html", "./style.css", "./app.js", "./easy.js", "./schedule.js", "./catalog.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
