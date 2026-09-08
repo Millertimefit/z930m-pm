@@ -392,12 +392,27 @@ button.ghost {
   padding: 8px 12px;
   margin: 0;
 }
+button.primary.block, button.secondary.block {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  font-size: 17px;
+  margin-top: 10px;
+}
+button.ghost.back {
+  width: auto;
+  margin: 0 0 12px;
+  padding: 4px 0;
+  border: 0;
+  font-size: 15px;
+}
+.start-card .hero-copy { margin-bottom: 8px; }
 
 .nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   background: var(--paper);
   border-top: 1px solid var(--line);
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
@@ -407,11 +422,11 @@ button.ghost {
   width: auto;
   border: 0;
   background: none;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 600;
-  padding: 8px 2px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-weight: 700;
+  padding: 12px 4px;
   color: var(--slate);
 }
 .nav button.active { color: var(--ink); box-shadow: inset 0 -2px 0 var(--sage); }
