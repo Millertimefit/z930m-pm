@@ -77,7 +77,7 @@ function loginPage(bad) {
 </body>
 </html>`;
   return new Response(html, {
-    status: 401,
+    status: 200,
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
@@ -114,5 +114,17 @@ export default async function middleware(request) {
   }
 
   if (await unlocked(request)) return;
+
+  const path = url.pathname;
+  const isDoc = path === "/" || path === "/index.html" || path.endsWith("/");
+  if (!isDoc) {
+    return new Response("Unlock the board first.", {
+      status: 401,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "no-store",
+      },
+    });
+  }
   return loginPage(url.searchParams.has("bad"));
 }

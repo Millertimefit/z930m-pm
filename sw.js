@@ -1,4 +1,4 @@
-const CACHE = "hwa-estate-v6";
+const CACHE = "hwa-estate-v7";
 const FILES = ["./index.html", "./style.css", "./app.js", "./schedule.js", "./catalog.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (e) => {
@@ -18,7 +18,8 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        if (res.ok) {
+        const ct = res.headers.get("content-type") || "";
+        if (res.ok && !ct.includes("text/html")) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));
         }
