@@ -2,7 +2,7 @@
 
 Red / white / blue Maverick log for client **3HWA** at **Bonita Springs Estate**.
 
-Sites: Main House, Office, Barn, Man Town, Pump Room, Shipp. Cont., AG Land.
+Sites: Main House, Office, Barn, Man Town, Pump Room, Shipp.Cont., AG Land.
 
 Classes: Equipment, Autos, Planes, Heavy Equip, Fence Gates.
 

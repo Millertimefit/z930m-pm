@@ -8,7 +8,7 @@ window.ESTATE = {
     { id: "barn", label: "Barn" },
     { id: "man-town", label: "Man Town" },
     { id: "pump-room", label: "Pump Room" },
-    { id: "ship-cont", label: "Shipp. Cont." },
+    { id: "ship-cont", label: "Shipp.Cont." },
     { id: "ag-land", label: "AG Land" },
   ],
   categories: [
