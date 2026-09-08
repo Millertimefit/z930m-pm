@@ -1,5 +1,6 @@
 window.ESTATE = {
   client: "3HWA",
+  title: "Built For Life",
   property: "Bonita Springs Estate",
   callsign: "MAVERICK",
   sites: [
