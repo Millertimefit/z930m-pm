@@ -46,7 +46,7 @@ function loginPage(bad) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#07111f" />
-  <title>3HWA · Restricted</title>
+  <title>Built For Life</title>
   <style>
     html,body{min-height:100%;margin:0;background:#07111f;color:#f6f7f9;font-family:system-ui,sans-serif}
     body{display:flex;align-items:center;justify-content:center;padding:24px}
@@ -65,7 +65,7 @@ function loginPage(bad) {
 <body>
   <form class="card" method="post" action="/">
     <p class="kicker">3HWA · MAVERICK</p>
-    <h1>Restricted</h1>
+    <h1>Built For Life</h1>
     <p>Bonita Springs Estate. Enter the board password.</p>
     ${bad ? '<p class="err">Wrong password.</p>' : ""}
     <label for="password">Password</label>
