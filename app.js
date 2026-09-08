@@ -39,7 +39,7 @@
     setTimeout(() => el.remove(), 1600);
   }
   function esc(s) {
-    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+    return String(s == null ? "" : s).replace(/&/g, "&").replace(/</g, "<").replace(/"/g, """);
   }
   function siteLabel(id) { const s = ESTATE.sites.find((x) => x.id === id); return s ? s.label : id; }
   function catLabel(id) { const s = ESTATE.categories.find((x) => x.id === id); return s ? s.label : id; }
@@ -159,8 +159,9 @@
   }
   function renderHeader() {
     const a = current();
-    document.getElementById("hdr-kicker").textContent = ESTATE.client + " | " + ESTATE.callsign;
-    document.getElementById("hdr-name").textContent = a ? a.name : ESTATE.property;
+    document.getElementById("hdr-kicker").textContent = ESTATE.client;
+    document.getElementById("hdr-name").textContent = a ? a.name : ESTATE.title;
+    document.title = a ? a.name + " \u00b7 " + ESTATE.title : ESTATE.title;
     document.getElementById("hdr-hours").textContent = a
       ? siteLabel(a.site) + " | " + catLabel(a.category) + " | " + a.meter + " " + a.meterLabel + " | " + overdueCount(a) + " overdue"
       : ESTATE.property + " | " + state.assets.length + " assets | " + estateOverdue() + " overdue";
@@ -277,9 +278,9 @@
     $app.querySelector("#f-add").onsubmit = (e) => { e.preventDefault(); addAsset(new FormData(e.target)); toast("Asset on the board"); view = "home"; render(); };
   }
   function more() {
-    $app.innerHTML = `<div class="card"><h2>${esc(ESTATE.client)}</h2><p class="muted">${esc(ESTATE.property)} | callsign ${esc(ESTATE.callsign)}</p><p class="muted" style="margin-top:8px">Sites: ${ESTATE.sites.map((s) => s.label).join(" | ")}</p><p class="muted">Classes: ${ESTATE.categories.map((s) => s.label).join(" | ")}</p></div>
+    $app.innerHTML = `<div class="card"><h2>${esc(ESTATE.title)}</h2><p class="muted">${esc(ESTATE.client)} | ${esc(ESTATE.property)} | callsign ${esc(ESTATE.callsign)}</p><p class="muted" style="margin-top:8px">Sites: ${ESTATE.sites.map((s) => s.label).join(" | ")}</p><p class="muted">Classes: ${ESTATE.categories.map((s) => s.label).join(" | ")}</p></div>
       <div class="card"><h2>Data</h2><button class="secondary" type="button" data-go="history">History</button><button class="ghost" type="button" id="export-json">Export JSON</button><button class="ghost" type="button" id="export-csv">Export CSV</button><label class="muted">Import JSON<input type="file" id="import-json" accept="application/json" /></label></div>
-      <div class="card sources"><h2>Deere sources (Z930M)</h2>${DEERE_SCHEDULE.sources.map((s) => `<p><a href="${s.url}" target="_blank" rel="noopener">${esc(s.title)}</a></p>`).join("")}<p class="muted" style="margin-top:8px">Not affiliated with Deere &amp; Company.</p></div>`;
+      <div class="card sources"><h2>Deere sources (Z930M)</h2>${DEERE_SCHEDULE.sources.map((s) => `<p><a href="${s.url}" target="_blank" rel="noopener">${esc(s.title)}</a></p>`).join("")}<p class="muted" style="margin-top:8px">Not affiliated with Deere & Company.</p></div>`;
     $app.querySelector("[data-go]").onclick = () => { view = "history"; render(); };
     $app.querySelector("#export-json").onclick = () => download("3hwa-estate.json", JSON.stringify(state, null, 2), "application/json");
     $app.querySelector("#export-csv").onclick = exportCsv;
