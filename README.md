@@ -1,6 +1,6 @@
 # Built For Life
 
-Red / white / blue Maverick log for client **3HWA** at **Bonita Springs Estate**.
+Calm operations board for client **3HWA** at **Bonita Springs Estate**. Debrief home, CRM-style records, and the field log.
 
 Sites: Main House, Office, Barn, Man Town, Pump Room, Shipp.Cont., AG Land.
 
