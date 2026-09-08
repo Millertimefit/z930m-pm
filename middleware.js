@@ -66,8 +66,8 @@ function loginPage(bad) {
   <form class="card" method="post" action="/">
     <p class="kicker">3HWA · MAVERICK</p>
     <h1>Built For Life</h1>
-    <p>Bonita Springs Estate. Enter the board password.</p>
-    ${bad ? '<p class="err">Wrong password.</p>' : ""}
+    <p>Type the password, then tap Unlock.</p>
+    ${bad ? '<p class="err">Wrong password. Try again.</p>' : ""}
     <label for="password">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required autofocus />
     <p class="hint">Hint: ants favorite snake plural capital T</p>
