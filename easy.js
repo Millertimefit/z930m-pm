@@ -84,6 +84,12 @@
       el.textContent = "+";
     }
   }
+  function conditionOpts(cur) {
+    const list = ["", "Excellent", "Good", "Fair", "Poor", "Needs work", "Out of service"];
+    return list
+      .map((o) => '<option value="' + esc(o) + '"' + (o === cur ? " selected" : "") + ">" + (o || "Pick one") + "</option>")
+      .join("");
+  }
   function markAdd() {
     document.querySelectorAll("#nav button").forEach((b) => {
       b.classList.toggle("active", b.getAttribute("data-view") === "add");
@@ -107,6 +113,13 @@
       '<label>Class</label><select name="category">' +
       opts(E.categories) +
       "</select>" +
+      '<div class="row2"><div><label>Make</label><input name="make" placeholder="John Deere, Ford…" /></div>' +
+      '<div><label>Model</label><input name="model" placeholder="Z930M, F-350…" /></div></div>' +
+      '<label>Description</label><textarea name="description" placeholder="What it is, size, color, deck, hours story…"></textarea>' +
+      '<label>Current condition</label><select name="condition">' +
+      conditionOpts("") +
+      "</select>" +
+      '<label>ETV (estimated value)</label><input name="etv" type="number" min="0" step="1" placeholder="Dollars" />' +
       '<div class="row2"><div><label>Reading now</label><input name="meter" type="number" min="0" step="0.1" value="0" /></div>' +
       '<div><label>Serial / VIN</label><input name="serial" placeholder="Optional" /></div></div>'
     );
@@ -231,6 +244,11 @@
       nextStepBy: "",
       tasks: [],
       photo: pendingPhoto || "",
+      make: String(fd.get("make") || "").trim(),
+      model: String(fd.get("model") || "").trim(),
+      description: String(fd.get("description") || "").trim(),
+      condition: String(fd.get("condition") || "").trim(),
+      etv: String(fd.get("etv") || "").trim(),
     };
     state.assets.push(asset);
     state.currentId = id;
@@ -257,18 +275,28 @@
       byId[a.id] = a;
     });
     app.querySelectorAll(".asset[data-id]").forEach((el) => {
-      if (el.querySelector(".asset-pic")) return;
       const a = byId[el.dataset.id] || {};
-      const pic = document.createElement("div");
-      pic.className = "asset-pic";
-      if (a.photo) {
-        pic.style.backgroundImage = "url(" + a.photo + ")";
-      } else {
-        pic.classList.add("letter");
-        pic.textContent = String(a.name || (el.querySelector("h3") && el.querySelector("h3").textContent) || "?").slice(0, 1).toUpperCase();
+      if (!el.querySelector(".asset-pic")) {
+        const pic = document.createElement("div");
+        pic.className = "asset-pic";
+        if (a.photo) {
+          pic.style.backgroundImage = "url(" + a.photo + ")";
+        } else {
+          pic.classList.add("letter");
+          pic.textContent = String(a.name || (el.querySelector("h3") && el.querySelector("h3").textContent) || "?").slice(0, 1).toUpperCase();
+        }
+        el.insertBefore(pic, el.firstChild);
+        el.classList.add("has-pic");
       }
-      el.insertBefore(pic, el.firstChild);
-      el.classList.add("has-pic");
+      if (!el.dataset.spec) {
+        el.dataset.spec = "1";
+        const meta = el.querySelector(".meta");
+        const bits = [];
+        if (a.make || a.model) bits.push([a.make, a.model].filter(Boolean).join(" "));
+        if (a.condition) bits.push(a.condition);
+        if (a.etv) bits.push("ETV $" + a.etv);
+        if (meta && bits.length) meta.textContent = bits.join(" · ") + " · " + meta.textContent;
+      }
     });
     const hero = app.querySelector(".hero-copy");
     const recCard = hero && hero.closest(".card");
@@ -313,6 +341,58 @@
         wrap.appendChild(file);
         recCard.insertBefore(wrap, hero);
       }
+    }
+    injectSpecs(app, state, recCard);
+  }
+
+  function injectSpecs(app, state, recCard) {
+    if (!app || !recCard || app.querySelector("#eq-specs") || app.querySelector("#tmpl-form")) return;
+    const a = state.assets.find((x) => x.id === state.currentId);
+    if (!a || a.kind === "inventory") return;
+    const box = document.createElement("div");
+    box.id = "eq-specs";
+    box.innerHTML =
+      "<h2>Equipment</h2>" +
+      '<form id="eq-spec-form">' +
+      '<div class="row2"><div><label>Make</label><input name="make" value="' +
+      esc(a.make || "") +
+      '" placeholder="John Deere, Ford…" /></div>' +
+      '<div><label>Model</label><input name="model" value="' +
+      esc(a.model || "") +
+      '" placeholder="Z930M, F-350…" /></div></div>' +
+      '<label>Description</label><textarea name="description" placeholder="What it is, size, color, deck…">' +
+      esc(a.description || "") +
+      "</textarea>" +
+      '<label>Current condition</label><select name="condition">' +
+      conditionOpts(a.condition || "") +
+      "</select>" +
+      '<label>ETV (estimated value)</label><input name="etv" type="number" min="0" step="1" value="' +
+      esc(a.etv || "") +
+      '" placeholder="Dollars" />' +
+      '<button class="secondary block" type="submit">Save details</button></form>';
+    const logBtn = recCard.querySelector("#go-log") || recCard.querySelector(".hero-copy");
+    if (logBtn && logBtn.parentNode) logBtn.parentNode.insertBefore(box, logBtn.nextSibling);
+    else recCard.appendChild(box);
+    const form = box.querySelector("#eq-spec-form");
+    if (form) {
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const next = readState();
+        const hit = next.assets.find((x) => x.id === a.id);
+        if (!hit) return;
+        hit.make = String(fd.get("make") || "").trim();
+        hit.model = String(fd.get("model") || "").trim();
+        hit.description = String(fd.get("description") || "").trim();
+        hit.condition = String(fd.get("condition") || "").trim();
+        hit.etv = String(fd.get("etv") || "").trim();
+        writeState(next);
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = "Saved";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 1600);
+      };
     }
   }
 
